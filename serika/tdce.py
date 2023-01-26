@@ -5,6 +5,10 @@ import itertools
 
 from form_blocks import form_blocks
 
+# Implementation of local analysis & optimization
+# i.e. which happens within the scope of each basic block,
+# which can avoids the complex control/data flow analysis.
+
 
 # TODO (cycloidzzz) : type hints
 def trivial_dce_pass(function) -> bool:
@@ -60,7 +64,6 @@ def remove_killed_instructions_pass(function):
                 last_def_map[dest] = instr
 
     function['instrs'] = list(itertools.chain(*blocks))
-
     return changed
 
 
