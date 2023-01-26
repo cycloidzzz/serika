@@ -9,10 +9,12 @@ def form_blocks(instructions: List):
 
     cur_block = []
     for inst in instructions:
-        # TODO (cycloidzzz): assert that label only appears at the start of each basic block.
         if 'op' not in inst:
             # a label
-            cur_block.append(inst)
+            if cur_block:
+                # if inst is a label, then must be the beginning of a basic block
+                yield cur_block
+            cur_block = [inst]
         else:
             # an instruction
             if inst['op'] in BRANCH_INSTS:

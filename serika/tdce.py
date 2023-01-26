@@ -7,7 +7,7 @@ from form_blocks import form_blocks
 
 
 # TODO (cycloidzzz) : type hints
-def simple_dce_pass(function) -> bool:
+def trivial_dce_pass(function) -> bool:
     """Run a single Dead Code Elimination on the single basic block."""
     blocks = list(form_blocks(function['instrs']))
 
@@ -31,13 +31,57 @@ def simple_dce_pass(function) -> bool:
     return changed
 
 
+def trivial_dce(function):
+    """Run `trivial_dce_pass` on `function` until convergent"""
+    while trivial_dce_pass(function):
+        continue
+
+
+def remove_killed_instructions_pass(function):
+    blocks = list(form_blocks(function['instrs']))
+    changed: bool = False
+
+    for block in blocks:
+        last_def_map = {}
+
+        for instr in block:
+            # Check for uses of instr
+            if 'args' in instr:
+                for arg in instr['args']:
+                    if arg in last_def_map:
+                        del last_def_map[arg]
+
+            # Check for def
+            if 'dest' in instr:
+                dest: str = instr['dest']
+                if dest in last_def_map:
+                    changed = True
+                    block.remove(last_def_map[dest])
+                last_def_map[dest] = instr
+
+    function['instrs'] = list(itertools.chain(*blocks))
+
+    return changed
+
+
+def trivial_dce_function(func):
+    while trivial_dce_pass(func) or remove_killed_instructions_pass(func):
+        continue
+
+
+_LOCAL_DCE_FACTORY = {
+    'trivial_dce': trivial_dce,
+    'tdce_drop_killed': trivial_dce_function
+}
+
+
 def local_optimization():
     module = json.load(sys.stdin)
     for function in module['functions']:
         print(
             f"function name = {function['name']}, function instr = {function['instrs']}"
         )
-        simple_dce_pass(function)
+        trivial_dce_function(function)
         print(f"functions instrs = {function['instrs']}")
 
 
