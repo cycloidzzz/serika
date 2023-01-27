@@ -5,11 +5,10 @@ import json
 import sys
 
 from collections import defaultdict, OrderedDict
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 
-def dfs(root: str,
-        named_blocks) -> Tuple[Dict[str, int], Dict[int, str], Dict[str, str]]:
+def dfs(named_blocks) -> Tuple[Dict[str, int], Dict[int, str], Dict[str, str]]:
     predecessors, successors = edges(named_blocks)
 
     dfn_num = 0
@@ -29,21 +28,19 @@ def dfs(root: str,
                 parent[vertex] = v
                 _dfs_handler(vertex)
 
+    root: str = list(named_blocks.keys())[0]
+
     _dfs_handler(root)
 
     return dfn_map, dfn_to_block, parent
 
 
 # Solve immediate dominator with Lengauer-Tarjan Algorithm
-def solve_dominator(function):
-    blocks = form_blocks(function['instrs'])
-    named_blocks = block_map(blocks)
-    add_terminators(named_blocks)
-    add_entry(named_blocks)
+def dominator_tree(named_blocks) -> Dict[str, List[str]]:
 
     predecessors, successors = edges(named_blocks)
 
-    dfn, dfn_to_block, parent = dfs('entry', named_blocks)
+    dfn, dfn_to_block, parent = dfs(named_blocks)
 
     semi: Dict[str, str] = {}
     ancestor: Dict[str, str] = {}
@@ -52,6 +49,11 @@ def solve_dominator(function):
 
     idom: Dict[str, str] = {}
     rdom: Dict[str, str] = {}
+
+    idom_inv: Dict[str, List[str]] = OrderedDict(
+        {name: []
+         for name, _ in named_blocks.items()}
+    )
 
     def _eval(v: str):
         a: str = ancestor[v]
@@ -94,17 +96,64 @@ def solve_dominator(function):
         v = dfn_to_block[i]
         if v not in idom:
             idom[v] = idom[rdom[v]]
+        idom_inv[idom[v]].append(v)
 
-    print(idom)
+    return idom_inv
+
+
+def postorder_traverse(root, succ):
+    def _postorder_helper(root: str, visited: Set[str], result):
+        if root in visited:
+            return
+        visited.add(root)
+
+        for s in succ[root]:
+            _postorder_helper(s, visited, result)
+        result.append(root)
+
+    result: List[str] = []
+    _postorder_helper(root, set(), result)
+
+    return result
+
+
+# FIXME(cycloidzzz): this implementation might be very slow if dom_tree[v] is a list ...
+def dominator_frontier(named_blocks, dom_tree):
+    _, succs = edges(named_blocks)
+
+    root = list(named_blocks.keys())[0]
+    postorder_list = postorder_traverse(root, dom_tree)
+
+    print(f"post order = {postorder_list}")
+
+    fronts: Dict[str, List[str]] = OrderedDict()
+
+    for v in postorder_list:
+        temp_fronts: Set[str] = set()
+
+        temp_fronts.update([y for y in succs[v] if y not in dom_tree[v]])
+
+        for z in dom_tree[v]:
+            temp_fronts.update([y for y in fronts[z] if y not in dom_tree[v]])
+
+        fronts[v] = list(temp_fronts)
+
+    return fronts
 
 
 def print_idom():
     module = json.load(sys.stdin)
     for function in module['functions']:
-        print(
-            f"function name = {function['name']}, function instr = {function['instrs']}"
-        )
-        solve_dominator(function)
+        print(f"function name = {function['name']}")
+        named_blocks = block_map(form_blocks(function['instrs']))
+        add_entry(named_blocks)
+        add_terminators(named_blocks)
+
+        dom_tree = dominator_tree(named_blocks)
+        print(dom_tree)
+
+        dom_front = dominator_frontier(named_blocks, dom_tree)
+        print(dom_front)
 
 
 if __name__ == "__main__":
