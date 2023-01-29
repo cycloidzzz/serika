@@ -1,9 +1,9 @@
 from typing import Dict, Iterable, List, Tuple
+from bril_type import JsonType
 
 BRANCH_INSTS: List[str] = ['br', 'jmp', 'ret']
 
-
-def form_blocks(instructions: List):
+def form_blocks(instructions: List[JsonType])->Iterable[List[JsonType]]:
     # The basic block should start with labels and end with control flow instructions
     # like ['br', 'jmp', 'ret']
 

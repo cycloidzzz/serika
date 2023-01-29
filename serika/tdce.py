@@ -3,15 +3,15 @@ import json
 import sys
 import itertools
 
+from bril_type import JsonType
 from form_blocks import form_blocks
 
 # Implementation of local analysis & optimization
 # i.e. which happens within the scope of each basic block,
 # which can avoids the complex control/data flow analysis.
 
-
 # TODO (cycloidzzz) : type hints
-def trivial_dce_pass(function) -> bool:
+def trivial_dce_pass(function: JsonType) -> bool:
     """Run a single Dead Code Elimination on the single basic block."""
     blocks = list(form_blocks(function['instrs']))
 
@@ -31,17 +31,16 @@ def trivial_dce_pass(function) -> bool:
         print(f"Current block = {block}")
 
     function['instrs'] = list(itertools.chain(*blocks))
-
     return changed
 
 
-def trivial_dce(function):
+def trivial_dce(function: JsonType):
     """Run `trivial_dce_pass` on `function` until convergent"""
     while trivial_dce_pass(function):
         continue
 
 
-def remove_killed_instructions_pass(function):
+def remove_killed_instructions_pass(function: JsonType):
     blocks = list(form_blocks(function['instrs']))
     changed: bool = False
 
