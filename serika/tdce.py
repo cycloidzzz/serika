@@ -10,6 +10,7 @@ from form_blocks import form_blocks
 # i.e. which happens within the scope of each basic block,
 # which can avoids the complex control/data flow analysis.
 
+
 # TODO (cycloidzzz) : type hints
 def trivial_dce_pass(function: JsonType) -> bool:
     """Run a single Dead Code Elimination on the single basic block."""
