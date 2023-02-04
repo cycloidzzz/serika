@@ -124,8 +124,6 @@ def dominator_frontier(named_blocks, dom_tree):
     root = list(named_blocks.keys())[0]
     postorder_list = postorder_traverse(root, dom_tree)
 
-    print(f"post order = {postorder_list}")
-
     fronts: Dict[str, List[str]] = OrderedDict()
 
     for v in postorder_list:

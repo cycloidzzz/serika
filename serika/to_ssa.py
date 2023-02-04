@@ -2,10 +2,10 @@ import json
 import sys
 from copy import deepcopy
 from collections import defaultdict
-from typing import (Dict, List, Optional, Set)
+from typing import (Dict, List, Optional, Set, Tuple)
 
 from bril_type import (BlockType, JsonType)
-from cfg import (block_map, add_entry, add_terminators, edges)
+from cfg import (block_map, add_entry, add_terminators, edges, reassemble)
 from dom import (dominator_tree, dominator_frontier)
 from form_blocks import form_blocks
 
@@ -43,7 +43,7 @@ def get_phis(
     named_blocks: Dict[str, BlockType], defs_map: Dict[str, Set[str]],
     dom_front: Dict[str, List[str]]
 ) -> Dict[str, Set[str]]:
-    """Figure out the phis to insert for each variable"""
+    """Figure out the phis to insert for each basic block."""
     variables: List[str] = list(defs_map.keys())
     block_phis: Dict[str,
                      Set[str]] = {name: set()
@@ -51,13 +51,11 @@ def get_phis(
     for v in variables:
         v_defs: List[str] = list(defs_map[v])
         for name in v_defs:
-            for front_name in dom_front[name]:
-                # Dominator frontier of `block`
-                # Insert a phi into front_name
-                block_phis[front_name].add(v)
-                if front_name not in defs_map[v]:
-                    defs_map[v].add(front_name)
-    print(f"block_phis = {block_phis}")
+            for front in dom_front[name]:
+                # Insert a phi into the dominator frontier of `block`
+                block_phis[front].add(v)
+                if front not in defs_map[v]:
+                    defs_map[v].add(front)
     return block_phis
 
 
@@ -69,7 +67,7 @@ def ssa_rename(
     var_stack: Dict[str, List[str]] = defaultdict(list)
     counter: Dict[str, int] = defaultdict(int)
 
-    phi_args: Dict[str, Dict[str, Set[str]]] = {
+    phi_args: Dict[str, Dict[str, Set[Tuple[str, str]]]] = {
         name: {v: set()
                for v in list(v_set)}
         for name, v_set in block_phis.items()
@@ -106,15 +104,12 @@ def ssa_rename(
                 instr['args'] = renamed_args
             # push a new name for current definition
             if 'dest' in instr:
-                dest = instr['dest']
                 instr['dest'] = _push_fresh(instr['dest'])
-                print(f"current {root}: {var_stack[dest]}")
 
         for succ in succs[root]:
             for phi in block_phis[succ]:
                 if phi in var_stack:
-                    print(f"{root}, {phi} stack = {var_stack[phi][0]}")
-                    phi_args[succ][phi].add(var_stack[phi][0])
+                    phi_args[succ][phi].add((root, var_stack[phi][0]))
 
         for v in dom_tree[root]:
             _rename(v)
@@ -126,6 +121,26 @@ def ssa_rename(
     entry: str = list(named_blocks.keys())[0]
     _rename(entry)
     return phi_args, phi_dest
+
+
+def insert_phis(
+    named_blocks: Dict[str, BlockType],
+    phi_args: Dict[str, str], phi_dest: Dict[str, Dict[str, str]],
+    types_map: Dict[str, str]
+) -> None:
+    """Insert phis into each basic block."""
+    for name, block in named_blocks.items():
+        for var, p in phi_dest[name].items():
+            arg_pairs: List[Tuple[str, str]] = list(phi_args[name][var])
+            if len(arg_pairs) >= 2:
+                phi_instr: JsonType = {
+                    "op": 'phi',
+                    "dest": p,
+                    "type": types_map[var],
+                    "labels": [arg_pair[0] for arg_pair in arg_pairs],
+                    "args": [arg_pair[1] for arg_pair in arg_pairs],
+                }
+                block.insert(0, phi_instr)
 
 
 def to_ssa_on_function(func: JsonType):
@@ -147,16 +162,15 @@ def to_ssa_on_function(func: JsonType):
         named_blocks, func_args, block_phis, dom_tree
     )
 
-    print(f"phi_args = {phi_args}")
-    print(f"phi_dest = {phi_dest}")
-    print(f"blocks = {named_blocks}")
+    insert_phis(named_blocks, phi_args, phi_dest, types_map)
+    func['instrs'] = reassemble(named_blocks)
 
 
 def main():
     bril_program: JsonType = json.load(sys.stdin)
     for func in bril_program['functions']:
         to_ssa_on_function(func)
-        #print(func)
+    print(json.dumps(bril_program, indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":
