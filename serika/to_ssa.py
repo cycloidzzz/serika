@@ -49,13 +49,16 @@ def get_phis(
                      Set[str]] = {name: set()
                                   for name in named_blocks.keys()}
     for v in variables:
-        v_defs: List[str] = list(defs_map[v])
-        for name in v_defs:
-            for front in dom_front[name]:
-                # Insert a phi into the dominator frontier of `block`
-                block_phis[front].add(v)
-                if front not in defs_map[v]:
-                    defs_map[v].add(front)
+        # For each variable `v`, use a work list to insert all phis to the DF+(defs_map[v])
+        work_list: List[str] = list(defs_map[v])
+        for block in work_list:
+            for front in dom_front[block]:
+                if v not in block_phis[front]:
+                    block_phis[front].add(v)
+                    if front not in defs_map[v]:
+                        defs_map[v].add(front)
+                        work_list.append(front)
+
     return block_phis
 
 

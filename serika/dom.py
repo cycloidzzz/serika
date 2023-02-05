@@ -119,6 +119,8 @@ def postorder_traverse(root, succ):
 
 # FIXME(cycloidzzz): this implementation might be very slow if dom_tree[v] is a list ...
 def dominator_frontier(named_blocks, dom_tree):
+    # NOTE: Actually we are calculating the dominator frontier 
+    # with the help of dominance-join graph (a.k.a. DJ-Graph)
     _, succs = edges(named_blocks)
 
     root = list(named_blocks.keys())[0]
