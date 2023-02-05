@@ -123,13 +123,12 @@ def ssa_rename(
 
     entry: str = list(named_blocks.keys())[0]
     _rename(entry)
-    return phi_args, phi_dest
+    return (phi_args, phi_dest)
 
 
 def insert_phis(
-    named_blocks: Dict[str, BlockType],
-    phi_args: Dict[str, str], phi_dest: Dict[str, Dict[str, str]],
-    types_map: Dict[str, str]
+    named_blocks: Dict[str, BlockType], phi_args: Dict[str, str],
+    phi_dest: Dict[str, Dict[str, str]], types_map: Dict[str, str]
 ) -> None:
     """Insert phis into each basic block."""
     for name, block in named_blocks.items():

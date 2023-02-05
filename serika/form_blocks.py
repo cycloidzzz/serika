@@ -24,4 +24,5 @@ def form_blocks(instructions: List[JsonType]) -> Iterable[List[JsonType]]:
                 cur_block = []
             else:
                 cur_block.append(inst)
-    yield cur_block
+    if cur_block:
+        yield cur_block
